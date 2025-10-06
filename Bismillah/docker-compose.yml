@@ -1,0 +1,31 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "55320:55320"
+    environment:
+      - PYTHON_SERVICE_HOST=python-service
+      - PYTHON_SERVICE_PORT=55322
+    depends_on:
+      - python-service
+
+  python-service:
+    build: ./python_service
+    ports:
+      - "55322:55322"
+    environment:
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - DATASET_CACHE_DIR=/app/cache/datasets
+    volumes:
+      - ./cache:/app/cache
+    command: ["python", "main.py"]
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "55321:55321"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend

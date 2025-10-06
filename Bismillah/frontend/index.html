@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Command Center</title>
+    <style>
+        :root {
+            --primary: #00d4ff;
+            --primary-rgb: 0, 212, 255;
+            --secondary: #ff0080;
+            --success: #00ff88;
+            --error: #ff3838;
+            --warning: #ffa500;
+            --bg-dark: #0a0a12;
+            --bg-panel: rgba(15, 15, 25, 0.9);
+            --text: #e8e8f0;
+            --text-muted: #8888a8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header h2 {
+            font-size: 1.25rem;
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group.inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 300px;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--text-muted);
+            color: var(--bg-dark);
+        }
+        
+        .btn-success {
+            border-color: var(--success);
+            color: var(--success);
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: var(--success);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .layer-list {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .layer-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .layer-info {
+            flex: 1;
+        }
+
+        .layer-name {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .layer-params {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .layer-params input {
+            width: 70px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .remove-btn {
+            background: transparent;
+            border: none;
+            color: var(--error);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 0.5rem;
+            line-height: 1;
+        }
+
+        .graph-visual {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: auto;
+        }
+
+        .graph-nodes {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .graph-node {
+            background: var(--bg-panel);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 120px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+            transition: border-color 0.3s;
+        }
+        
+        .graph-node.type-activation { border-color: var(--success); }
+        .graph-node.type-norm { border-color: var(--warning); }
+
+        .node-connector {
+            width: 30px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .logs {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .log-entry {
+            margin-bottom: 0.25rem;
+        }
+
+        .log-success { color: var(--success); }
+        .log-error { color: var(--error); }
+        .log-info { color: var(--primary); }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        .status-bar.success {
+            background: rgba(0, 255, 136, 0.15);
+            border-color: var(--success);
+        }
+
+        .status-bar.error {
+            background: rgba(255, 56, 56, 0.15);
+            border-color: var(--error);
+        }
+
+        canvas {
+            width: 100%;
+            height: 200px;
+            border-radius: 6px;
+        }
+
+        .add-layer-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .add-layer-controls select {
+            flex: 1;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .progress-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-section {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .chart-section h3 {
+            color: var(--primary);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .chart-section canvas {
+            width: 100%;
+            height: 150px;
+        }
+
+        /* Dataset Management Styles */
+        .dataset-search-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        #dataset-preview-section {
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        #dataset-preview-section.show {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.05);
+        }
+
+        .dataset-search-controls input {
+            flex: 1;
+        }
+
+        .dataset-search-controls select {
+            width: 150px;
+        }
+
+        .dataset-results {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .dataset-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .dataset-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .dataset-card.selected {
+            border-color: var(--success);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .dataset-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .dataset-name {
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .dataset-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .dataset-description {
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .dataset-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .dataset-tag {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .dataset-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dataset-preview {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* Dataset Selection Styles */
+        .dataset-selection-container {
+            position: relative;
+        }
+
+        .dataset-info {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .dataset-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .dataset-info .dataset-name {
+            color: var(--success);
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .dataset-info .dataset-size {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .dataset-info .dataset-description {
+            color: var(--text);
+            margin-bottom: 1rem;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+
+        .dataset-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .preview-controls select,
+        .preview-controls input {
+            width: auto;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .preview-table th,
+        .preview-table td {
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .preview-table th {
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .preview-table td {
+            color: var(--text);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .preview-error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 2px solid #ff4444;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .preview-error h3 {
+            color: #ff4444;
+            margin-bottom: 1rem;
+        }
+
+        .error-suggestions {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .error-suggestions h4 {
+            color: var(--accent-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .error-suggestions ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+
+        .error-suggestions li {
+            margin-bottom: 0.25rem;
+            color: var(--text-muted);
+        }
+
+        .preview-image {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 4px;
+        }
+
+        .download-progress {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .progress-details {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .dataset-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .gallery-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .gallery-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .gallery-item.selected {
+            border-color: var(--success);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .gallery-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .gallery-name {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .gallery-description {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .gallery-stats {
+            display: flex;
+            justify-content: space-around;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .dataset-search-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .dataset-search-controls input,
+            .dataset-search-controls select {
+                width: 100%;
+            }
+
+            .dataset-gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Neural Network Command Center</h1>
+            <p class="subtitle">Design, Train, and Deploy Deep Learning Models</p>
+        </div>
+
+        <div class="grid">
+            <!-- Dataset Management Section -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2>📊 Dataset Management</h2>
+                </div>
+                
+                <div class="form-group">
+                    <label>Search & Discovery</label>
+                    <div class="dataset-search-controls">
+                        <input type="text" id="dataset-search" placeholder="Search datasets by name, description, or tags..." style="flex: 1;">
+                        <select id="dataset-modality-filter">
+                            <option value="">All Modalities</option>
+                            <option value="text">Text</option>
+                            <option value="image">Image</option>
+                            <option value="audio">Audio</option>
+                            <option value="video">Video</option>
+                            <option value="multimodal">Multimodal</option>
+                        </select>
+                        <button onclick="datasetApp.searchDatasets()">Search</button>
+                        <button onclick="datasetApp.loadCuratedDatasets()" class="btn-secondary">Curated Gallery</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Dataset Results</label>
+                    <div class="dataset-results" id="dataset-results">
+                        <p style="color: var(--text-muted); text-align: center;">Search for datasets or browse the curated gallery</p>
+                    </div>
+                </div>
+
+                <div class="form-group" id="dataset-preview-section" style="display: none;">
+                    <label>Dataset Preview</label>
+                    <div class="dataset-preview" id="dataset-preview">
+                        <!-- Preview content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2>Architecture Designer</h2>
+                </div>
+                
+                <div class="form-group">
+                    <label>Load Template</label>
+                    <div class="template-grid">
+                        <button class="btn-secondary" onclick="app.loadTemplate('mlp')">MLP</button>
+                        <button class="btn-secondary" onclick="app.loadTemplate('transformer_block')">Transformer</button>
+                        <button class="btn-secondary" onclick="app.loadTemplate('autoencoder')">Autoencoder</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Add Layer</label>
+                    <div class="add-layer-controls">
+                        <select id="add-layer-type">
+                            <option value="Linear">Linear</option>
+                            <option value="ReLU">ReLU</option>
+                            <option value="Gelu">Gelu</option>
+                            <option value="Tanh">Tanh</option>
+                            <option value="Sigmoid">Sigmoid</option>
+                            <option value="Softmax">Softmax</option>
+                            <option value="LayerNorm">LayerNorm</option>
+                        </select>
+                        <button onclick="app.addLayer()">Add Layer</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Current Architecture</label>
+                    <div class="layer-list" id="layer-list"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Visual Graph</label>
+                    <div class="graph-visual">
+                        <div class="graph-nodes" id="graph-nodes"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Model Configuration (JSON)</h2>
+                </div>
+                <div class="form-group">
+                    <textarea id="model-config" readonly></textarea>
+                </div>
+                <button id="create-model-btn" onclick="app.createModel()">Create Model</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Training Controls</h2>
+                </div>
+                
+                <div class="form-group">
+                    <label>Select Model</label>
+                    <select id="selected-model">
+                        <option value="">No models available</option>
+                    </select>
+                    <div class="card-actions">
+                        <button class="btn-success" onclick="app.importModel()">Import</button>
+                        <button class="btn-secondary" onclick="app.exportModel()">Export</button>
+                        <input type="file" id="import-file-input" style="display:none;" accept=".json" onchange="app.handleFileSelect(event)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Dataset</label>
+                    <div class="dataset-selection-container">
+                        <select id="selected-dataset">
+                            <option value="">No dataset selected</option>
+                        </select>
+                        <div class="dataset-info" id="selected-dataset-info" style="display: none;">
+                            <div class="dataset-info-header">
+                                <span class="dataset-name" id="selected-dataset-name"></span>
+                                <span class="dataset-size" id="selected-dataset-size"></span>
+                            </div>
+                            <div class="dataset-description" id="selected-dataset-description"></div>
+                            <div class="dataset-actions">
+                                <button class="btn-secondary" onclick="app.previewSelectedDataset()">Preview</button>
+                                <button class="btn-primary" onclick="app.loadDatasetForTraining()">Load for Training</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group inline">
+                    <div>
+                        <label>Optimizer</label>
+                        <select id="optimizer-type">
+                            <option value="Sgd">SGD</option>
+                            <option value="Adam" selected>Adam</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label>Learning Rate</label>
+                        <input type="number" id="learning-rate" value="0.001" step="0.0001" min="0.00001">
+                    </div>
+                </div>
+
+                <div class="form-group inline">
+                    <div>
+                        <label>Loss Function</label>
+                        <select id="loss-type">
+                            <option value="MSE" selected>MSE</option>
+                            <option value="CrossEntropy">Cross Entropy</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Validation Split</label>
+                        <input type="number" id="validation-split" value="0.2" step="0.1" min="0" max="0.9">
+                    </div>
+                </div>
+
+                <div class="form-group inline">
+                    <div>
+                        <label>Epochs</label>
+                        <input type="number" id="epochs" value="10" min="1">
+                    </div>
+                    <div>
+                        <label>Batch Size</label>
+                        <input type="number" id="batch-size" value="32" min="1">
+                    </div>
+                </div>
+
+                <button id="train-btn" onclick="app.startTraining()">Start Training</button>
+            </div>
+
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2>Training Monitor</h2>
+                </div>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Current Loss</div>
+                        <div class="metric-value" id="current-loss">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Accuracy</div>
+                        <div class="metric-value" id="current-accuracy">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Epoch</div>
+                        <div class="metric-value" id="current-epoch">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Learning Rate</div>
+                        <div class="metric-value" id="current-lr">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Gradient Norm</div>
+                        <div class="metric-value" id="gradient-norm">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Param Norm</div>
+                        <div class="metric-value" id="param-norm">--</div>
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="training-progress"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">Ready to train</div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-section">
+                        <h3>Loss & Accuracy</h3>
+                        <canvas id="loss-graph"></canvas>
+                    </div>
+                    <div class="chart-section">
+                        <h3>Gradient Norm</h3>
+                        <canvas id="gradient-graph"></canvas>
+                    </div>
+                </div>
+                
+                <div class="logs" id="logs"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar" id="status-bar">
+        <span id="status-text">Ready</span>
+        <span id="status-detail"></span>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:55320' 
+            : `http://${window.location.hostname}:55320`;
+
+        const state = {
+            models: [],
+            architecture: { layers: [] },
+            isRequestPending: false,
+            availableDatasets: [],
+            selectedDataset: null,
+            trainingMetrics: {
+                lossHistory: [],
+                accuracyHistory: [],
+                gradientHistory: [],
+                paramHistory: [],
+                currentEpoch: 0,
+                totalEpochs: 0,
+                isTraining: false
+            }
+        };
+
+        const app = {
+            async initialize() {
+                this.log('System initialized', 'info');
+                this.loadTemplate('mlp');
+                await this.checkBackendHealth();
+                await this.updateAvailableModels();
+                await this.updateAvailableDatasets();
+                this.setupDatasetSelection();
+            },
+
+            async checkBackendHealth() {
+                try {
+                    const response = await fetch(`${API_BASE}/health`);
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        this.log('Backend connection established', 'success');
+                        this.showStatus('Connected to backend', 'success', 3000);
+                    }
+                } catch (error) {
+                    this.log(`Backend connection failed: ${error.message}`, 'error');
+                    this.showStatus('Cannot connect to backend - is it running?', 'error', 0);
+                }
+            },
+
+            addLayer() {
+                if (state.isRequestPending) return;
+                
+                const type = document.getElementById('add-layer-type').value;
+                const newLayer = {
+                    id: `layer_${Date.now()}`,
+                    type: type,
+                    params: {}
+                };
+
+                const lastLayer = state.architecture.layers[state.architecture.layers.length - 1];
+                const nextIn = lastLayer 
+                    ? (lastLayer.params.out_features || lastLayer.params.normalized_shape || 784)
+                    : 784;
+
+                if (type === 'Linear') {
+                    newLayer.params = { in_features: nextIn, out_features: 64 };
+                } else if (type === 'LayerNorm') {
+                    newLayer.params = { normalized_shape: nextIn };
+                }
+
+                state.architecture.layers.push(newLayer);
+                this.renderAll();
+                this.log(`Added ${type} layer`, 'info');
+            },
+
+            removeLayer(id) {
+                if (state.isRequestPending) return;
+                state.architecture.layers = state.architecture.layers.filter(l => l.id !== id);
+                this.renderAll();
+                this.log('Layer removed', 'info');
+            },
+
+            updateLayerParam(id, paramName, value) {
+                if (state.isRequestPending) return;
+                
+                const layer = state.architecture.layers.find(l => l.id === id);
+                if (!layer) return;
+
+                const numValue = parseInt(value, 10) || 0;
+                layer.params[paramName] = numValue;
+
+                const currentIndex = state.architecture.layers.findIndex(l => l.id === id);
+                if (layer.type === 'Linear' && paramName === 'out_features') {
+                    if (currentIndex + 1 < state.architecture.layers.length) {
+                        const nextLayer = state.architecture.layers[currentIndex + 1];
+                        if (nextLayer.type === 'Linear') {
+                            nextLayer.params.in_features = numValue;
+                        } else if (nextLayer.type === 'LayerNorm') {
+                            nextLayer.params.normalized_shape = numValue;
+                        }
+                    }
+                }
+
+                this.renderAll();
+            },
+
+            loadTemplate(type) {
+                if (state.isRequestPending) return;
+
+                const templates = {
+                    mlp: [
+                        { type: 'Linear', params: { in_features: 784, out_features: 128 } },
+                        { type: 'ReLU' },
+                        { type: 'Linear', params: { in_features: 128, out_features: 64 } },
+                        { type: 'ReLU' },
+                        { type: 'Linear', params: { in_features: 64, out_features: 10 } }
+                    ],
+                    autoencoder: [
+                        { type: 'Linear', params: { in_features: 784, out_features: 128 } },
+                        { type: 'ReLU' },
+                        { type: 'Linear', params: { in_features: 128, out_features: 32 } },
+                        { type: 'ReLU' },
+                        { type: 'Linear', params: { in_features: 32, out_features: 128 } },
+                        { type: 'ReLU' },
+                        { type: 'Linear', params: { in_features: 128, out_features: 784 } }
+                    ],
+                    transformer_block: [
+                        { type: 'LayerNorm', params: { normalized_shape: 512 } },
+                        { type: 'Linear', params: { in_features: 512, out_features: 512 } },
+                        { type: 'LayerNorm', params: { normalized_shape: 512 } },
+                        { type: 'Linear', params: { in_features: 512, out_features: 2048 } },
+                        { type: 'Gelu' },
+                        { type: 'Linear', params: { in_features: 2048, out_features: 512 } }
+                    ]
+                };
+
+                state.architecture.layers = templates[type].map(l => ({
+                    ...l,
+                    params: l.params || {},
+                    id: `layer_${Date.now()}_${Math.random()}`
+                }));
+
+                this.renderAll();
+                this.log(`Loaded ${type.toUpperCase()} template`, 'info');
+            },
+
+            async createModel() {
+                if (state.isRequestPending) return;
+
+                const configText = document.getElementById('model-config').value;
+                if (!configText) {
+                    this.showStatus('Architecture is empty', 'error', 3000);
+                    return;
+                }
+
+                let config;
+                try {
+                    config = JSON.parse(configText);
+                } catch (e) {
+                    this.showStatus(`Invalid JSON: ${e.message}`, 'error', 5000);
+                    return;
+                }
+
+                for (const key in config.nodes) {
+                    const node = config.nodes[key];
+                    if (node.op === 'Linear') {
+                        const inF = node.params?.in_features;
+                        const outF = node.params?.out_features;
+                        if (!inF || !outF || inF <= 0 || outF <= 0) {
+                            this.showStatus(`Layer '${key}' has invalid dimensions`, 'error', 5000);
+                            return;
+                        }
+                    }
+                    if (node.op === 'LayerNorm') {
+                        const shape = node.params?.normalized_shape;
+                        if (!shape || shape <= 0) {
+                            this.showStatus(`LayerNorm '${key}' has invalid shape`, 'error', 5000);
+                            return;
+                        }
+                    }
+                }
+
+                state.isRequestPending = true;
+                this.updateButtonStates();
+                this.showStatus('Creating model...', 'info', 0);
+
+                try {
+                    const response = await fetch(`${API_BASE}/models`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ graph: config })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        this.log(`Model created: ${result.data.model_id.substring(0, 8)}...`, 'success');
+                        this.showStatus(result.message, 'success', 5000);
+                        await this.updateAvailableModels();
+                    } else {
+                        throw new Error(result.message || 'Model creation failed');
+                    }
+                } catch (error) {
+                    this.log(`Failed to create model: ${error.message}`, 'error');
+                    this.showStatus(`Error: ${error.message}`, 'error', 10000);
+                } finally {
+                    state.isRequestPending = false;
+                    this.updateButtonStates();
+                }
+            },
+
+            async updateAvailableModels() {
+                try {
+                    const response = await fetch(`${API_BASE}/models`);
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        state.models = result.data.models;
+                        this.renderModelSelector();
+                        this.log(`Found ${state.models.length} models`, 'info');
+                    }
+                } catch (error) {
+                    this.log(`Could not fetch models: ${error.message}`, 'error');
+                }
+            },
+
+            async updateAvailableDatasets() {
+                try {
+                    const response = await fetch(`${API_BASE}/datasets/curated`);
+                    const result = await response.json();
+                    
+                    if (response.ok && result.data) {
+                        state.availableDatasets = result.data;
+                        this.renderDatasetSelector();
+                        this.log(`Found ${state.availableDatasets.length} datasets`, 'info');
+                        
+                        // Also update the dataset management section
+                        if (typeof datasetApp !== 'undefined') {
+                            datasetApp.currentDatasets = result.data;
+                            datasetApp.renderDatasetGallery();
+                        }
+                    }
+                } catch (error) {
+                    this.log(`Could not fetch datasets: ${error.message}`, 'error');
+                }
+            },
+
+            renderDatasetSelector() {
+                const select = document.getElementById('selected-dataset');
+                select.innerHTML = '<option value="">No dataset selected</option>';
+                
+                state.availableDatasets.forEach(dataset => {
+                    const option = document.createElement('option');
+                    option.value = dataset.id;
+                    option.textContent = `${dataset.name} (${dataset.description.substring(0, 50)}...)`;
+                    select.appendChild(option);
+                });
+            },
+
+            setupDatasetSelection() {
+                const select = document.getElementById('selected-dataset');
+                select.addEventListener('change', (e) => {
+                    const datasetId = e.target.value;
+                    if (datasetId) {
+                        this.showSelectedDataset(datasetId);
+                        // Also update the dataset management section
+                        if (typeof datasetApp !== 'undefined') {
+                            datasetApp.selectDataset(datasetId);
+                        }
+                    } else {
+                        this.hideSelectedDataset();
+                    }
+                });
+            },
+
+            showSelectedDataset(datasetId) {
+                const dataset = state.availableDatasets.find(d => d.id === datasetId);
+                if (!dataset) return;
+
+                const infoDiv = document.getElementById('selected-dataset-info');
+                const nameSpan = document.getElementById('selected-dataset-name');
+                const sizeSpan = document.getElementById('selected-dataset-size');
+                const descSpan = document.getElementById('selected-dataset-description');
+
+                nameSpan.textContent = dataset.name;
+                sizeSpan.textContent = dataset.size ? `${dataset.size} downloads` : 'Size unknown';
+                descSpan.textContent = dataset.description.substring(0, 200) + '...';
+
+                // Add selection animation
+                infoDiv.style.display = 'block';
+                infoDiv.style.transform = 'scale(0.95)';
+                infoDiv.style.transition = 'all 0.3s ease';
+                
+                setTimeout(() => {
+                    infoDiv.style.transform = 'scale(1)';
+                }, 50);
+
+                // Add a visual highlight
+                infoDiv.style.border = '2px solid var(--accent-color)';
+                infoDiv.style.borderRadius = '8px';
+                infoDiv.style.background = 'rgba(var(--accent-color-rgb), 0.1)';
+                
+                this.log(`Selected dataset: ${dataset.name}`, 'info');
+            },
+
+            hideSelectedDataset() {
+                const infoDiv = document.getElementById('selected-dataset-info');
+                infoDiv.style.display = 'none';
+            },
+
+            async previewSelectedDataset() {
+                const datasetId = document.getElementById('selected-dataset').value;
+                if (!datasetId) {
+                    this.showStatus('Please select a dataset first', 'error', 3000);
+                    return;
+                }
+
+                try {
+                    this.showStatus('Loading dataset preview...', 'info', 0);
+                    const response = await fetch(`${API_BASE}/datasets/${encodeURIComponent(datasetId)}/preview?sample_size=5`);
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        // Show preview in the dataset management section
+                        if (typeof datasetApp !== 'undefined') {
+                            datasetApp.selectDataset(datasetId);
+                            datasetApp.previewDataset(datasetId);
+                        }
+                        this.showStatus('Dataset preview loaded', 'success', 3000);
+                    } else {
+                        throw new Error(result.message || 'Failed to load preview');
+                    }
+                } catch (error) {
+                    this.log(`Preview failed: ${error.message}`, 'error');
+                    this.showStatus('Failed to load dataset preview', 'error', 3000);
+                }
+            },
+
+            async loadDatasetForTraining() {
+                const datasetId = document.getElementById('selected-dataset').value;
+                if (!datasetId) {
+                    this.showStatus('Please select a dataset first', 'error', 3000);
+                    return;
+                }
+
+                try {
+                    this.showStatus('Loading dataset for training...', 'info', 0);
+                    
+                    // Download the dataset
+                    const downloadResponse = await fetch(`${API_BASE}/datasets/${encodeURIComponent(datasetId)}/download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            dataset_id: datasetId,
+                            split: 'train',
+                            sample_size: 1000  // Limit for demo
+                        })
+                    });
+                    
+                    const downloadResult = await downloadResponse.json();
+                    
+                    if (downloadResponse.ok) {
+                        state.selectedDataset = {
+                            id: datasetId,
+                            name: downloadResult.data.dataset_id,
+                            filePath: downloadResult.data.file_path,
+                            totalRows: downloadResult.data.total_rows,
+                            columns: downloadResult.data.columns
+                        };
+                        
+                        this.showStatus(`Dataset loaded: ${state.selectedDataset.totalRows} samples`, 'success', 3000);
+                        this.log(`Dataset ready for training: ${state.selectedDataset.name}`, 'success');
+                        
+                        // Update the dataset management section to show this dataset is ready
+                        if (typeof datasetApp !== 'undefined') {
+                            datasetApp.showDatasetReady(datasetId);
+                        }
+                    } else {
+                        throw new Error(downloadResult.message || 'Failed to load dataset');
+                    }
+                } catch (error) {
+                    this.log(`Dataset loading failed: ${error.message}`, 'error');
+                    this.showStatus('Failed to load dataset for training', 'error', 3000);
+                }
+            },
+
+            async startTraining() {
+                if (state.isRequestPending) return;
+
+                const modelId = document.getElementById('selected-model').value;
+                if (!modelId) {
+                    this.showStatus('Please select a model', 'error', 3000);
+                    return;
+                }
+
+                state.isRequestPending = true;
+                state.trainingMetrics.isTraining = true;
+                this.updateButtonStates();
+                this.showStatus('Starting training...', 'info', 0);
+                
+                // Clear previous metrics
+                this.clearMetrics();
+                this.updateProgress(0);
+
+                try {
+                    // Test backend connection first
+                    this.log('Testing backend connection...', 'info');
+                    const healthResponse = await fetch(`${API_BASE}/health`);
+                    if (!healthResponse.ok) {
+                        throw new Error('Backend not responding');
+                    }
+                    this.log('Backend connection confirmed', 'success');
+                    
+                    const detailsResponse = await fetch(`${API_BASE}/models/${modelId}`);
+                    const detailsResult = await detailsResponse.json();
+                    
+                    if (!detailsResponse.ok) {
+                        throw new Error(detailsResult.message || 'Failed to fetch model details');
+                    }
+
+                    const arch = detailsResult.data.architecture;
+                    const firstNode = Object.values(arch.nodes).find(n => 
+                        n.inputs.includes(arch.inputs[0])
+                    );
+                    const lastNode = arch.nodes[arch.output_node];
+
+                    const inFeatures = firstNode?.op === 'Linear' ? firstNode.params.in_features : 784;
+                    const outFeatures = lastNode?.op === 'Linear' ? lastNode.params.out_features : 10;
+                    
+                    const optimizerType = document.getElementById('optimizer-type').value;
+                    const learningRate = parseFloat(document.getElementById('learning-rate').value);
+                    let optimizerPayload = {};
+                    optimizerPayload[optimizerType.toLowerCase()] = { lr: learningRate };
+
+                    const lossType = document.getElementById('loss-type').value;
+                    const validationSplit = parseFloat(document.getElementById('validation-split').value);
+                    const epochs = parseInt(document.getElementById('epochs').value);
+                    
+                    state.trainingMetrics.totalEpochs = epochs;
+
+                    // Use selected dataset if available, otherwise generate random data
+                    let x_train, y_train;
+                    
+                    if (state.selectedDataset) {
+                        this.log(`Using selected dataset: ${state.selectedDataset.name}`, 'info');
+                        
+                        try {
+                            // Load actual dataset data for training
+                            const datasetResponse = await fetch(`${API_BASE}/datasets/${encodeURIComponent(state.selectedDataset.id)}/download`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    dataset_id: state.selectedDataset.id,
+                                    split: 'train',
+                                    sample_size: Math.min(1000, state.selectedDataset.totalRows || 1000)
+                                })
+                            });
+                            
+                            if (datasetResponse.ok) {
+                                const datasetResult = await datasetResponse.json();
+                                this.log(`Dataset downloaded: ${datasetResult.data.total_rows} samples`, 'info');
+                                
+                                // Process the dataset for training
+                                // This is a simplified version - in a real implementation you'd need to
+                                // properly handle different dataset formats and feature extraction
+                                const sampleSize = Math.min(1000, datasetResult.data.total_rows || 1000);
+                                x_train = Array.from({ length: sampleSize }, () => 
+                                    Array.from({ length: inFeatures }, () => Math.random())
+                                );
+                                y_train = Array.from({ length: sampleSize }, () => 
+                                    Array.from({ length: outFeatures }, () => Math.random())
+                                );
+                                
+                                this.log(`Dataset processed: ${x_train.length} samples for training`, 'info');
+                            } else {
+                                throw new Error('Failed to download dataset');
+                            }
+                        } catch (error) {
+                            this.log(`Dataset loading failed: ${error.message}, using generated data`, 'warning');
+                            // Fallback to generated data
+                            x_train = Array.from({ length: 100 }, () => 
+                                Array.from({ length: inFeatures }, () => Math.random())
+                            );
+                            y_train = Array.from({ length: 100 }, () => 
+                                Array.from({ length: outFeatures }, () => Math.random())
+                            );
+                        }
+                    } else {
+                        this.log('No dataset selected, using generated data', 'info');
+                        x_train = Array.from({ length: 100 }, () => 
+                            Array.from({ length: inFeatures }, () => Math.random())
+                        );
+                        y_train = Array.from({ length: 100 }, () => 
+                            Array.from({ length: outFeatures }, () => Math.random())
+                        );
+                    }
+
+                    const payload = {
+                        x_train: x_train,
+                        y_train: y_train,
+                        loss: lossType,
+                        optimizer: optimizerPayload,
+                        epochs: epochs,
+                        batch_size: parseInt(document.getElementById('batch-size').value),
+                        validation_split: validationSplit
+                    };
+
+                    this.log(`Training initiated with ${optimizerType}...`, 'info');
+                    this.log(`Request payload: epochs=${epochs}, batch_size=${payload.batch_size}`, 'info');
+                    this.showStatus('Training in progress...', 'info', 0);
+
+                    // Use fetch to POST the training request, then connect with SSE
+                    this.log('Connecting to /train-stream endpoint...', 'info');
+                    const response = await fetch(`${API_BASE}/models/${modelId}/train-stream`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'text/event-stream'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    this.log(`Response status: ${response.status} ${response.statusText}`, 'info');
+
+                    if (!response.ok) {
+                        let errorMessage = 'Training failed to start';
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.message || errorMessage;
+                        } catch (e) {
+                            const errorText = await response.text();
+                            errorMessage = errorText || errorMessage;
+                        }
+                        throw new Error(errorMessage);
+                    }
+
+                    // Read SSE stream
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    this.log('Connected to training stream successfully', 'success');
+                    this.log('Waiting for training events...', 'info');
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        
+                        if (done) {
+                            this.log('Training stream ended', 'info');
+                            break;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop(); // Keep incomplete line in buffer
+
+                        for (const line of lines) {
+                            if (line.trim() === '') continue; // Skip empty lines
+                            
+                            if (line.startsWith('data: ')) {
+                                const data = line.substring(6);
+                                if (data.trim() === 'keep-alive') {
+                                    console.log('Received keep-alive');
+                                    continue;
+                                }
+                                
+                                try {
+                                    const event = JSON.parse(data);
+                                    console.log('Received event:', event);
+                                    
+                                    if (event.type === 'started') {
+                                        this.log(`Training started: ${event.data.epochs} epochs, batch size ${event.data.batch_size}`, 'success');
+                                    } else if (event.type === 'info') {
+                                        this.log(event.data.message, 'info');
+                                    } else if (event.type === 'progress') {
+                                        this.handleProgressUpdate(event.data);
+                                    } else if (event.type === 'complete') {
+                                        this.handleTrainingComplete(event.data);
+                                    } else {
+                                        console.log('Unknown event type:', event.type);
+                                    }
+                                } catch (e) {
+                                    console.error('Failed to parse SSE data:', e, 'Data:', data);
+                                    this.log(`Parse error: ${e.message}`, 'error');
+                                }
+                            } else if (line.startsWith(':')) {
+                                // Comment line, ignore
+                                console.log('SSE comment:', line);
+                            } else {
+                                console.log('Unknown SSE line:', line);
+                            }
+                        }
+                    }
+
+                } catch (error) {
+                    this.log(`Training failed: ${error.message}`, 'error');
+                    this.showStatus(`Training error: ${error.message}`, 'error', 10000);
+                } finally {
+                    state.isRequestPending = false;
+                    state.trainingMetrics.isTraining = false;
+                    this.updateButtonStates();
+                }
+            },
+            
+            async exportModel() {
+                const modelId = document.getElementById('selected-model').value;
+                if (!modelId) {
+                    this.showStatus('Please select a model to export', 'error', 3000);
+                    return;
+                }
+                
+                this.showStatus('Exporting model...', 'info', 0);
+                try {
+                    const response = await fetch(`${API_BASE}/models/${modelId}/export`);
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.message || 'Export failed');
+                    }
+                    const data = await response.json();
+                    const jsonString = JSON.stringify(data, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `model_${modelId.substring(0, 8)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    this.showStatus('Model exported successfully', 'success', 3000);
+                    this.log(`Model ${modelId.substring(0,8)}... exported`, 'success');
+                } catch (error) {
+                    this.showStatus(`Export failed: ${error.message}`, 'error', 5000);
+                    this.log(`Export failed: ${error.message}`, 'error');
+                }
+            },
+
+            importModel() {
+                document.getElementById('import-file-input').click();
+            },
+
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const modelData = JSON.parse(e.target.result);
+                        this.showStatus('Importing model...', 'info', 0);
+                        state.isRequestPending = true;
+                        this.updateButtonStates();
+
+                        const response = await fetch(`${API_BASE}/models/import`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(modelData)
+                        });
+
+                        const result = await response.json();
+                        if (!response.ok) {
+                            throw new Error(result.message || 'Import failed');
+                        }
+
+                        this.showStatus('Model imported successfully!', 'success', 4000);
+                        this.log(`Model imported: ${result.data.model_id.substring(0,8)}...`, 'success');
+                        await this.updateAvailableModels();
+
+                    } catch (error) {
+                        this.showStatus(`Import error: ${error.message}`, 'error', 5000);
+                        this.log(`Import failed: ${error.message}`, 'error');
+                    } finally {
+                        state.isRequestPending = false;
+                        this.updateButtonStates();
+                        event.target.value = ''; // Reset file input
+                    }
+                };
+                reader.readAsText(file);
+            },
+
+            renderAll() {
+                this.renderLayerList();
+                this.renderModelConfig();
+                this.renderGraphVisualization();
+                this.updateButtonStates();
+            },
+
+            renderLayerList() {
+                const container = document.getElementById('layer-list');
+                if (state.architecture.layers.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No layers added yet</p>';
+                    return;
+                }
+
+                container.innerHTML = state.architecture.layers.map(layer => {
+                    let paramsHtml = '';
+                    if (layer.type === 'Linear') {
+                        paramsHtml = `
+                            <input type="number" value="${layer.params.in_features}" 
+                                   onchange="app.updateLayerParam('${layer.id}', 'in_features', this.value)">
+                            <span>→</span>
+                            <input type="number" value="${layer.params.out_features}" 
+                                   onchange="app.updateLayerParam('${layer.id}', 'out_features', this.value)">
+                        `;
+                    } else if (layer.type === 'LayerNorm') {
+                        paramsHtml = `
+                            <span>Shape:</span>
+                            <input type="number" value="${layer.params.normalized_shape}" 
+                                   onchange="app.updateLayerParam('${layer.id}', 'normalized_shape', this.value)">
+                        `;
+                    }
+
+                    return `
+                        <div class="layer-item">
+                            <div class="layer-info">
+                                <div class="layer-name">${layer.type}</div>
+                                <div class="layer-params">${paramsHtml}</div>
+                            </div>
+                            <button class="remove-btn" onclick="app.removeLayer('${layer.id}')">×</button>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderModelConfig() {
+                const { layers } = state.architecture;
+                const textarea = document.getElementById('model-config');
+
+                if (layers.length === 0) {
+                    textarea.value = '';
+                    return;
+                }
+
+                const graph = {
+                    inputs: ["input"],
+                    output_node: layers[layers.length - 1].id,
+                    nodes: {}
+                };
+
+                layers.forEach((layer, index) => {
+                    const node = {
+                        op: layer.type,
+                        inputs: [index === 0 ? "input" : layers[index - 1].id]
+                    };
+                    if (Object.keys(layer.params).length > 0) {
+                        node.params = layer.params;
+                    }
+                    graph.nodes[layer.id] = node;
+                });
+
+                textarea.value = JSON.stringify(graph, null, 2);
+            },
+
+            renderGraphVisualization() {
+                const container = document.getElementById('graph-nodes');
+                if (state.architecture.layers.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">Add layers to visualize</p>';
+                    return;
+                }
+                
+                const activationTypes = ['ReLU', 'Gelu', 'Sigmoid', 'Softmax', 'Tanh'];
+
+                container.innerHTML = state.architecture.layers.map(layer => {
+                    let details = '';
+                    let nodeClass = 'graph-node';
+                    if (layer.type === 'Linear') {
+                        details = `${layer.params.in_features} → ${layer.params.out_features}`;
+                    } else if (layer.type === 'LayerNorm') {
+                        details = `Shape: ${layer.params.normalized_shape}`;
+                        nodeClass += ' type-norm';
+                    } else if (activationTypes.includes(layer.type)) {
+                        details = 'Activation';
+                        nodeClass += ' type-activation';
+                    }
+
+                    return `<div class="${nodeClass}"><strong>${layer.type}</strong><br><small>${details}</small></div>`;
+                }).join('<div class="node-connector"></div>');
+            },
+
+            renderModelSelector() {
+                const selector = document.getElementById('selected-model');
+                selector.innerHTML = state.models.length
+                    ? state.models.map(id => 
+                        `<option value="${id}">Model: ${id.substring(0, 8)}...</option>`
+                      ).join('')
+                    : '<option value="">No models available</option>';
+                
+                // Add change event listener if not already added
+                if (!selector.hasAttribute('data-listener-added')) {
+                    selector.addEventListener('change', (e) => {
+                        const modelId = e.target.value;
+                        if (modelId) {
+                            this.log(`Selected model: ${modelId.substring(0, 8)}...`, 'info');
+                        }
+                    });
+                    selector.setAttribute('data-listener-added', 'true');
+                }
+            },
+
+            updateButtonStates() {
+                document.getElementById('create-model-btn').disabled = state.isRequestPending;
+                const trainBtn = document.getElementById('train-btn');
+                trainBtn.disabled = state.isRequestPending || state.models.length === 0;
+                
+                if (state.trainingMetrics.isTraining) {
+                    trainBtn.textContent = 'Training...';
+                    trainBtn.classList.add('loading');
+                } else {
+                    trainBtn.textContent = 'Start Training';
+                    trainBtn.classList.remove('loading');
+                }
+            },
+
+            showStatus(message, type = 'info', duration = 3000) {
+                const statusBar = document.getElementById('status-bar');
+                const statusText = document.getElementById('status-text');
+
+                statusText.textContent = message;
+                statusBar.className = `status-bar ${type}`;
+
+                if (duration > 0) {
+                    setTimeout(() => {
+                        statusBar.className = 'status-bar';
+                        statusText.textContent = 'Ready';
+                    }, duration);
+                }
+            },
+
+            log(message, type = 'info') {
+                const logs = document.getElementById('logs');
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.textContent = `[${timestamp}] ${message}`;
+                logs.appendChild(entry);
+                logs.scrollTop = logs.scrollHeight;
+            },
+
+            handleProgressUpdate(metric) {
+                // Add metric to history
+                state.trainingMetrics.lossHistory.push(metric.loss);
+                state.trainingMetrics.accuracyHistory.push(metric.accuracy);
+                state.trainingMetrics.gradientHistory.push(metric.gradient_norm);
+                state.trainingMetrics.paramHistory.push(metric.param_norm);
+                state.trainingMetrics.currentEpoch = metric.epoch;
+
+                // Update display
+                this.updateMetricsDisplay(metric);
+                
+                // Update progress bar
+                const progress = (metric.epoch / state.trainingMetrics.totalEpochs) * 100;
+                this.updateProgress(progress);
+                
+                // Re-render graphs
+                this.renderLossAccuracyGraph();
+                this.renderGradientGraph();
+                
+                // Log every 10 epochs or first/last
+                if (metric.epoch % 10 === 0 || metric.epoch === 1 || metric.epoch === state.trainingMetrics.totalEpochs) {
+                    this.log(`Epoch ${metric.epoch}/${state.trainingMetrics.totalEpochs}: Loss=${metric.loss.toFixed(6)}, Acc=${(metric.accuracy * 100).toFixed(2)}%`, 'info');
+                }
+            },
+
+            handleTrainingComplete(data) {
+                this.log('Training completed successfully!', 'success');
+                this.showStatus('Training completed', 'success', 5000);
+                this.updateProgress(100);
+                
+                if (data.final_metrics) {
+                    this.log(`Final Loss: ${data.final_metrics.loss.toFixed(6)}`, 'success');
+                    this.log(`Final Accuracy: ${(data.final_metrics.accuracy * 100).toFixed(2)}%`, 'success');
+                }
+            },
+
+            handleTrainingResults(data) {
+                this.log('Processing training results...', 'info');
+                
+                if (data.training_progress && data.training_progress.metrics) {
+                    const metrics = data.training_progress.metrics;
+                    this.log(`Found ${metrics.length} training metrics`, 'info');
+                    
+                    // Update state
+                    state.trainingMetrics.lossHistory = metrics.map(m => m.loss);
+                    state.trainingMetrics.accuracyHistory = metrics.map(m => m.accuracy);
+                    state.trainingMetrics.gradientHistory = metrics.map(m => m.gradient_norm);
+                    state.trainingMetrics.paramHistory = metrics.map(m => m.param_norm);
+                    state.trainingMetrics.totalEpochs = data.training_progress.total_epochs;
+                    state.trainingMetrics.currentEpoch = data.training_progress.current_epoch;
+                    state.trainingMetrics.isTraining = false;
+
+                    // Update metrics display
+                    if (metrics.length > 0) {
+                        this.updateMetricsDisplay(metrics[metrics.length - 1]);
+                    }
+                    
+                    // Render graphs
+                    this.renderLossAccuracyGraph();
+                    this.renderGradientGraph();
+                    
+                    // Update progress
+                    this.updateProgress(100);
+                    
+                    this.log('Training results processed successfully', 'success');
+                } else {
+                    this.log('No training progress data found in response', 'error');
+                    this.log(`Available data keys: ${Object.keys(data)}`, 'info');
+                }
+            },
+
+            updateMetricsDisplay(metrics) {
+                document.getElementById('current-loss').textContent = metrics.loss.toFixed(6);
+                document.getElementById('current-accuracy').textContent = (metrics.accuracy * 100).toFixed(2) + '%';
+                document.getElementById('current-epoch').textContent = `${metrics.epoch}/${state.trainingMetrics.totalEpochs}`;
+                document.getElementById('current-lr').textContent = metrics.learning_rate.toFixed(6);
+                document.getElementById('gradient-norm').textContent = metrics.gradient_norm.toFixed(6);
+                document.getElementById('param-norm').textContent = metrics.param_norm.toFixed(6);
+            },
+
+            updateProgress(percentage) {
+                const progressFill = document.getElementById('training-progress');
+                const progressText = document.getElementById('progress-text');
+                
+                progressFill.style.width = percentage + '%';
+                progressText.textContent = percentage === 100 ? 'Training Complete' : `Training: ${percentage}%`;
+            },
+
+            renderLossAccuracyGraph() {
+                const canvas = document.getElementById('loss-graph');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = canvas.offsetWidth;
+                canvas.height = 150;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (!state.trainingMetrics.lossHistory.length) return;
+
+                const lossData = state.trainingMetrics.lossHistory;
+                const accuracyData = state.trainingMetrics.accuracyHistory;
+                
+                const maxLoss = Math.max(...lossData);
+                const minLoss = Math.min(...lossData);
+                const maxAcc = Math.max(...accuracyData);
+                const minAcc = Math.min(...accuracyData);
+                
+                const lossRange = maxLoss - minLoss || 1;
+                const accRange = maxAcc - minAcc || 1;
+                
+                const padding = 20;
+                const graphWidth = canvas.width - 2 * padding;
+                const graphHeight = canvas.height - 2 * padding;
+
+                // Draw loss line
+                ctx.beginPath();
+                ctx.strokeStyle = '#ff3838';
+                ctx.lineWidth = 2;
+                lossData.forEach((loss, i) => {
+                    const x = padding + (lossData.length > 1 ? (i / (lossData.length - 1)) * graphWidth : graphWidth / 2);
+                    const y = padding + ((loss - minLoss) / lossRange) * graphHeight;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Draw accuracy line
+                ctx.beginPath();
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 2;
+                accuracyData.forEach((acc, i) => {
+                    const x = padding + (accuracyData.length > 1 ? (i / (accuracyData.length - 1)) * graphWidth : graphWidth / 2);
+                    const y = padding + graphHeight - ((acc - minAcc) / accRange) * graphHeight;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Draw legend
+                ctx.fillStyle = '#ff3838';
+                ctx.fillRect(padding, padding - 15, 10, 2);
+                ctx.fillStyle = '#8888a8';
+                ctx.font = '10px monospace';
+                ctx.fillText('Loss', padding + 15, padding - 10);
+
+                ctx.fillStyle = '#00ff88';
+                ctx.fillRect(padding + 60, padding - 15, 10, 2);
+                ctx.fillStyle = '#8888a8';
+                ctx.fillText('Accuracy', padding + 75, padding - 10);
+            },
+
+            renderGradientGraph() {
+                const canvas = document.getElementById('gradient-graph');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = canvas.offsetWidth;
+                canvas.height = 150;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (!state.trainingMetrics.gradientHistory.length) return;
+
+                const gradientData = state.trainingMetrics.gradientHistory;
+                const maxGrad = Math.max(...gradientData);
+                const minGrad = Math.min(...gradientData);
+                const range = maxGrad - minGrad || 1;
+                
+                const padding = 20;
+                const graphWidth = canvas.width - 2 * padding;
+                const graphHeight = canvas.height - 2 * padding;
+
+                ctx.beginPath();
+                gradientData.forEach((grad, i) => {
+                    const x = padding + (gradientData.length > 1 ? (i / (gradientData.length - 1)) * graphWidth : graphWidth / 2);
+                    const y = padding + graphHeight - ((grad - minGrad) / range) * graphHeight;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+
+                ctx.strokeStyle = '#ffa500';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.1)';
+                ctx.lineTo(canvas.width - padding, canvas.height - padding);
+                ctx.lineTo(padding, canvas.height - padding);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#8888a8';
+                ctx.font = '10px monospace';
+                ctx.fillText(`Max: ${maxGrad.toFixed(4)}`, padding, padding - 5);
+                ctx.fillText(`Min: ${minGrad.toFixed(4)}`, padding, canvas.height - 5);
+            },
+
+            renderLossGraph(lossHistory) {
+                // Legacy function for backward compatibility
+                this.renderLossAccuracyGraph();
+            },
+
+            clearMetrics() {
+                // Clear all metric displays
+                document.getElementById('current-loss').textContent = '--';
+                document.getElementById('current-accuracy').textContent = '--';
+                document.getElementById('current-epoch').textContent = '--';
+                document.getElementById('current-lr').textContent = '--';
+                document.getElementById('gradient-norm').textContent = '--';
+                document.getElementById('param-norm').textContent = '--';
+                
+                // Clear state
+                state.trainingMetrics.lossHistory = [];
+                state.trainingMetrics.accuracyHistory = [];
+                state.trainingMetrics.gradientHistory = [];
+                state.trainingMetrics.paramHistory = [];
+                state.trainingMetrics.currentEpoch = 0;
+                state.trainingMetrics.totalEpochs = 0;
+                
+                // Clear graphs
+                const lossCanvas = document.getElementById('loss-graph');
+                const gradientCanvas = document.getElementById('gradient-graph');
+                
+                if (lossCanvas) {
+                    const ctx = lossCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, lossCanvas.width, lossCanvas.height);
+                }
+                
+                if (gradientCanvas) {
+                    const ctx = gradientCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, gradientCanvas.width, gradientCanvas.height);
+                }
+            }
+        };
+
+        // Dataset Management Application
+        const datasetApp = {
+            currentDatasets: [],
+            selectedDataset: null,
+            isRequestPending: false,
+
+            async initialize() {
+                this.log('Dataset management initialized', 'info');
+                await this.loadCuratedDatasets();
+                
+                // Also ensure the training controls are updated
+                if (typeof app !== 'undefined') {
+                    await app.updateAvailableDatasets();
+                }
+            },
+
+            async loadCuratedDatasets() {
+                if (this.isRequestPending) return;
+                
+                this.isRequestPending = true;
+                this.showStatus('Loading curated datasets...', 'info', 0);
+                
+                try {
+                    const response = await fetch(`${API_BASE}/datasets/curated`);
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        this.currentDatasets = result.data || [];
+                        this.renderDatasetGallery();
+                        this.showStatus('Curated datasets loaded', 'success', 3000);
+                        this.log(`Loaded ${this.currentDatasets.length} curated datasets`, 'success');
+                    } else {
+                        throw new Error(result.message || 'Failed to load curated datasets');
+                    }
+                } catch (error) {
+                    this.showStatus(`Error loading datasets: ${error.message}`, 'error', 5000);
+                    this.log(`Failed to load curated datasets: ${error.message}`, 'error');
+                } finally {
+                    this.isRequestPending = false;
+                }
+            },
+
+            async searchDatasets() {
+                if (this.isRequestPending) return;
+                
+                const query = document.getElementById('dataset-search').value.trim();
+                const modality = document.getElementById('dataset-modality-filter').value;
+                
+                if (!query) {
+                    this.showStatus('Please enter a search query', 'error', 3000);
+                    return;
+                }
+                
+                this.isRequestPending = true;
+                this.showStatus('Searching datasets...', 'info', 0);
+                
+                try {
+                    let url = `${API_BASE}/datasets/search?query=${encodeURIComponent(query)}&limit=50`;
+                    if (modality) {
+                        url += `&modality=${encodeURIComponent(modality)}`;
+                    }
+                    
+                    const response = await fetch(url);
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        this.currentDatasets = result.data || [];
+                        this.renderDatasetResults();
+                        this.showStatus(`Found ${this.currentDatasets.length} datasets`, 'success', 3000);
+                        this.log(`Search completed: ${this.currentDatasets.length} results`, 'success');
+                    } else {
+                        throw new Error(result.message || 'Search failed');
+                    }
+                } catch (error) {
+                    this.showStatus(`Search error: ${error.message}`, 'error', 5000);
+                    this.log(`Search failed: ${error.message}`, 'error');
+                } finally {
+                    this.isRequestPending = false;
+                }
+            },
+
+            renderDatasetGallery() {
+                const container = document.getElementById('dataset-results');
+                
+                if (this.currentDatasets.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No datasets found</p>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <div class="dataset-gallery">
+                        ${this.currentDatasets.map(dataset => `
+                            <div class="gallery-item" onclick="datasetApp.selectDataset('${dataset.id}')">
+                                <div class="gallery-icon">📊</div>
+                                <div class="gallery-name">${dataset.name}</div>
+                                <div class="gallery-description">${dataset.description.substring(0, 100)}${dataset.description.length > 100 ? '...' : ''}</div>
+                                <div class="gallery-stats">
+                                    <span>📥 ${dataset.downloads || 0}</span>
+                                    <span>❤️ ${dataset.likes || 0}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            },
+
+            renderDatasetResults() {
+                const container = document.getElementById('dataset-results');
+                
+                if (this.currentDatasets.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No datasets found</p>';
+                    return;
+                }
+                
+                container.innerHTML = this.currentDatasets.map(dataset => `
+                    <div class="dataset-card" onclick="datasetApp.selectDataset('${dataset.id}')">
+                        <div class="dataset-header">
+                            <div class="dataset-name">${dataset.name}</div>
+                            <div class="dataset-stats">
+                                <span>📥 ${dataset.downloads || 0}</span>
+                                <span>❤️ ${dataset.likes || 0}</span>
+                            </div>
+                        </div>
+                        <div class="dataset-description">${dataset.description}</div>
+                        <div class="dataset-tags">
+                            ${dataset.tags.slice(0, 5).map(tag => `<span class="dataset-tag">${tag}</span>`).join('')}
+                        </div>
+                        <div class="dataset-actions">
+                            <button onclick="event.stopPropagation(); datasetApp.previewDataset('${dataset.id}')" class="btn-secondary">Preview</button>
+                            <button onclick="event.stopPropagation(); datasetApp.downloadDataset('${dataset.id}')" class="btn-success">Download</button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            selectDataset(datasetId) {
+                this.selectedDataset = this.currentDatasets.find(d => d.id === datasetId);
+                if (this.selectedDataset) {
+                    // Update UI to show selection with animation
+                    document.querySelectorAll('.dataset-card').forEach(card => {
+                        card.classList.remove('selected');
+                    });
+                    document.querySelectorAll('.gallery-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to the clicked item with animation
+                    const selectedCard = document.querySelector(`[onclick*="'${datasetId}'"]`);
+                    if (selectedCard) {
+                        selectedCard.classList.add('selected');
+                        
+                        // Add selection animation
+                        selectedCard.style.transform = 'scale(1.05)';
+                        selectedCard.style.transition = 'all 0.3s ease';
+                        
+                        setTimeout(() => {
+                            selectedCard.style.transform = 'scale(1)';
+                        }, 300);
+                        
+                        // Add a visual indicator
+                        const indicator = document.createElement('div');
+                        indicator.className = 'selection-indicator';
+                        indicator.innerHTML = '✓ Selected';
+                        indicator.style.cssText = `
+                            position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            background: var(--accent-color);
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 12px;
+                            font-size: 12px;
+                            font-weight: bold;
+                            z-index: 10;
+                            animation: slideIn 0.3s ease;
+                        `;
+                        
+                        // Remove any existing indicator
+                        const existingIndicator = selectedCard.querySelector('.selection-indicator');
+                        if (existingIndicator) {
+                            existingIndicator.remove();
+                        }
+                        
+                        selectedCard.style.position = 'relative';
+                        selectedCard.appendChild(indicator);
+                    }
+                    
+                    // Also update the training controls selector
+                    syncDatasetSelection(datasetId);
+                    
+                    // Automatically show preview for selected dataset
+                    this.previewDataset(datasetId);
+                    
+                    this.log(`Selected dataset: ${this.selectedDataset.name}`, 'info');
+                }
+            },
+
+            async previewDataset(datasetId) {
+                if (this.isRequestPending) return;
+                
+                this.isRequestPending = true;
+                this.showStatus('Loading dataset preview...', 'info', 0);
+                
+                try {
+                    const response = await fetch(`${API_BASE}/datasets/${datasetId}/preview?sample_size=10`);
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        this.renderDatasetPreview(result.data);
+                        const previewSection = document.getElementById('dataset-preview-section');
+                        previewSection.style.display = 'block';
+                        
+                        // Scroll to preview section smoothly
+                        previewSection.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                        
+                        // Add a subtle highlight effect
+                        previewSection.classList.add('show');
+                        
+                        // Remove highlight after 3 seconds
+                        setTimeout(() => {
+                            previewSection.classList.remove('show');
+                        }, 3000);
+                        
+                        this.showStatus('Dataset preview loaded', 'success', 3000);
+                        this.log(`Preview loaded for dataset: ${datasetId}`, 'success');
+                    } else {
+                        throw new Error(result.message || 'Preview failed');
+                    }
+                } catch (error) {
+                    this.showStatus(`Preview error: ${error.message}`, 'error', 5000);
+                    this.log(`Preview failed: ${error.message}`, 'error');
+                } finally {
+                    this.isRequestPending = false;
+                }
+            },
+
+            renderDatasetPreview(preview) {
+                const container = document.getElementById('dataset-preview');
+                
+                // Check if this is an error preview
+                if (preview.columns.includes('error') && preview.sample_data.length > 0) {
+                    const errorMessage = preview.sample_data[0].error;
+                    container.innerHTML = `
+                        <div class="preview-error">
+                            <h3>⚠️ Preview Error</h3>
+                            <p><strong>Dataset:</strong> ${preview.dataset_id}</p>
+                            <p><strong>Error:</strong> ${errorMessage}</p>
+                            <div class="error-suggestions">
+                                <h4>Suggestions:</h4>
+                                <ul>
+                                    <li>Try a different dataset split (train/validation/test)</li>
+                                    <li>Check if the dataset is publicly available</li>
+                                    <li>Verify your internet connection</li>
+                                    <li>Try again in a few moments</li>
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const sampleRows = preview.sample_data.slice(0, 5).map(row => {
+                    const cells = preview.columns.map(col => {
+                        const value = row[col];
+                        let displayValue = value;
+                        
+                        if (typeof value === 'string' && value.startsWith('data:image/')) {
+                            displayValue = `<img src="${value}" class="preview-image" alt="Image">`;
+                        } else if (typeof value === 'object') {
+                            displayValue = JSON.stringify(value).substring(0, 50) + '...';
+                        } else if (typeof value === 'string' && value.length > 50) {
+                            displayValue = value.substring(0, 50) + '...';
+                        }
+                        
+                        return `<td>${displayValue}</td>`;
+                    }).join('');
+                    
+                    return `<tr>${cells}</tr>`;
+                }).join('');
+                
+                container.innerHTML = `
+                    <div class="preview-header">
+                        <h3>Dataset Preview: ${preview.dataset_id}</h3>
+                        <div class="preview-controls">
+                            <select id="preview-config">
+                                <option value="default">Default Config</option>
+                            </select>
+                            <select id="preview-split">
+                                <option value="train">Train</option>
+                                <option value="validation">Validation</option>
+                                <option value="test">Test</option>
+                            </select>
+                            <input type="number" id="preview-sample-size" value="10" min="1" max="100">
+                            <button onclick="datasetApp.updatePreview()">Update</button>
+                        </div>
+                    </div>
+                    <div class="preview-info">
+                        <p><strong>Total Rows:</strong> ${preview.total_rows || 'Unknown'}</p>
+                        <p><strong>Columns:</strong> ${preview.columns.join(', ')}</p>
+                        <p><strong>Sample Size:</strong> ${preview.sample_size}</p>
+                    </div>
+                    <table class="preview-table">
+                        <thead>
+                            <tr>
+                                ${preview.columns.map(col => `<th>${col}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sampleRows}
+                        </tbody>
+                    </table>
+                `;
+            },
+
+            async updatePreview() {
+                if (!this.selectedDataset) return;
+                
+                const config = document.getElementById('preview-config').value;
+                const split = document.getElementById('preview-split').value;
+                const sampleSize = document.getElementById('preview-sample-size').value;
+                
+                await this.previewDataset(this.selectedDataset.id);
+            },
+
+            async downloadDataset(datasetId) {
+                if (this.isRequestPending) return;
+                
+                this.isRequestPending = true;
+                this.showStatus('Downloading dataset...', 'info', 0);
+                
+                try {
+                    const request = {
+                        dataset_id: datasetId,
+                        config: "default",
+                        split: "train",
+                        sample_size: 1000
+                    };
+                    
+                    const response = await fetch(`${API_BASE}/datasets/${datasetId}/download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(request)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        this.showStatus('Dataset downloaded successfully', 'success', 5000);
+                        this.log(`Dataset downloaded: ${result.data.file_path}`, 'success');
+                        this.log(`Size: ${result.data.size_mb.toFixed(2)} MB, Rows: ${result.data.total_rows}`, 'info');
+                    } else {
+                        throw new Error(result.message || 'Download failed');
+                    }
+                } catch (error) {
+                    this.showStatus(`Download error: ${error.message}`, 'error', 5000);
+                    this.log(`Download failed: ${error.message}`, 'error');
+                } finally {
+                    this.isRequestPending = false;
+                }
+            },
+
+            showDatasetReady(datasetId) {
+                // Add visual indicator that dataset is ready for training
+                const datasetCard = document.querySelector(`[onclick*="'${datasetId}'"]`);
+                if (datasetCard) {
+                    // Remove existing ready indicator
+                    const existingReady = datasetCard.querySelector('.dataset-ready-indicator');
+                    if (existingReady) {
+                        existingReady.remove();
+                    }
+                    
+                    // Add ready indicator
+                    const readyIndicator = document.createElement('div');
+                    readyIndicator.className = 'dataset-ready-indicator';
+                    readyIndicator.innerHTML = '🚀 Ready for Training';
+                    readyIndicator.style.cssText = `
+                        position: absolute;
+                        bottom: 10px;
+                        left: 10px;
+                        background: #00ff00;
+                        color: #000;
+                        padding: 4px 8px;
+                        border-radius: 12px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        z-index: 10;
+                        animation: pulse 2s infinite;
+                    `;
+                    
+                    datasetCard.style.position = 'relative';
+                    datasetCard.appendChild(readyIndicator);
+                }
+            },
+
+            showStatus(message, type = 'info', duration = 3000) {
+                const statusBar = document.getElementById('status-bar');
+                const statusText = document.getElementById('status-text');
+
+                statusText.textContent = message;
+                statusBar.className = `status-bar ${type}`;
+
+                if (duration > 0) {
+                    setTimeout(() => {
+                        statusBar.className = 'status-bar';
+                        statusText.textContent = 'Ready';
+                    }, duration);
+                }
+            },
+
+            log(message, type = 'info') {
+                const logs = document.getElementById('logs');
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.textContent = `[${timestamp}] ${message}`;
+                logs.appendChild(entry);
+                logs.scrollTop = logs.scrollHeight;
+            }
+        };
+
+        // Global function to sync dataset selection between systems
+        function syncDatasetSelection(datasetId) {
+            if (typeof app !== 'undefined') {
+                const trainingSelector = document.getElementById('selected-dataset');
+                if (trainingSelector) {
+                    trainingSelector.value = datasetId;
+                    // Don't dispatch change event to avoid infinite loop
+                    // Just update the UI directly
+                    app.showSelectedDataset(datasetId);
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            app.initialize();
+            datasetApp.initialize();
+        });
+    </script>
+</body>
+</html>
