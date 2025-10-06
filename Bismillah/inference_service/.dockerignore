@@ -1,0 +1,8 @@
+target/
+.git/
+.gitignore
+README.md
+examples/
+*.log
+.env
+.env.local

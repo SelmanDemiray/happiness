@@ -790,6 +790,221 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Inference Chat Styles */
+        .inference-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .model-selection-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .model-selection-container select {
+            flex: 1;
+        }
+
+        .inference-type-selector {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .inference-type-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .inference-type-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .inference-type-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--bg-dark);
+        }
+
+        .chat-settings {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .setting-row label {
+            min-width: 80px;
+            font-size: 0.9rem;
+        }
+
+        .setting-row input[type="range"] {
+            flex: 1;
+        }
+
+        .setting-row span {
+            min-width: 30px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .chat-container {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .welcome-message {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+
+        .welcome-message h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: var(--primary);
+            color: var(--bg-dark);
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.assistant {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            margin-right: auto;
+        }
+
+        .message.system {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid var(--warning);
+            text-align: center;
+            margin: 0 auto;
+            max-width: 60%;
+        }
+
+        .message-meta {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        .chat-input-container {
+            border-top: 1px solid var(--border);
+            padding: 1rem;
+            background: var(--bg-panel);
+        }
+
+        .input-area {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.75rem;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 60px;
+            max-height: 120px;
+        }
+
+        .input-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .typing-indicator {
+            margin-top: 0.5rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .typing-indicator::after {
+            content: '...';
+            animation: typing 1.5s infinite;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { opacity: 0; }
+            30% { opacity: 1; }
+        }
+
+        .model-comparison {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .model-comparison-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .comparison-table th {
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -1021,6 +1236,79 @@
                 </div>
                 
                 <div class="logs" id="logs"></div>
+            </div>
+
+            <!-- Inference Chat Section -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2>🤖 AI Inference Chat</h2>
+                </div>
+                
+                <div class="inference-controls">
+                    <div class="form-group">
+                        <label>Model Selection</label>
+                        <div class="model-selection-container">
+                            <select id="inference-model-select">
+                                <option value="">Select a model...</option>
+                            </select>
+                            <button onclick="inferenceApp.loadModels()" class="btn-secondary">Refresh Models</button>
+                            <button onclick="inferenceApp.showModelComparison()" class="btn-secondary">Compare Models</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Inference Type</label>
+                        <div class="inference-type-selector">
+                            <button class="inference-type-btn active" data-type="text" onclick="inferenceApp.setInferenceType('text')">Text</button>
+                            <button class="inference-type-btn" data-type="image" onclick="inferenceApp.setInferenceType('image')">Image</button>
+                            <button class="inference-type-btn" data-type="video" onclick="inferenceApp.setInferenceType('video')">Video</button>
+                            <button class="inference-type-btn" data-type="multimodal" onclick="inferenceApp.setInferenceType('multimodal')">Multimodal</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Chat Settings</label>
+                        <div class="chat-settings">
+                            <div class="setting-row">
+                                <label>Temperature:</label>
+                                <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7">
+                                <span id="temperature-value">0.7</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>Max Tokens:</label>
+                                <input type="number" id="max-tokens" min="1" max="4096" value="2048">
+                            </div>
+                            <div class="setting-row">
+                                <label>Top P:</label>
+                                <input type="range" id="top-p" min="0" max="1" step="0.1" value="0.9">
+                                <span id="top-p-value">0.9</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="welcome-message">
+                            <h3>Welcome to AI Inference Chat!</h3>
+                            <p>Select a model and start chatting. You can use text, images, videos, or multimodal inputs.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <div class="input-area">
+                            <textarea id="chat-input" placeholder="Type your message here..." rows="3"></textarea>
+                            <div class="input-actions">
+                                <input type="file" id="file-input" accept="image/*,video/*" style="display: none;">
+                                <button onclick="document.getElementById('file-input').click()" class="btn-secondary">📎</button>
+                                <button onclick="inferenceApp.sendMessage()" class="btn-primary">Send</button>
+                            </div>
+                        </div>
+                        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                            <span>AI is typing...</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2539,9 +2827,356 @@
             }
         }
 
+        // Inference Chat Application
+        const inferenceApp = {
+            currentModel: null,
+            currentSession: null,
+            currentInferenceType: 'text',
+            websocket: null,
+            models: [],
+
+            async initialize() {
+                await this.loadModels();
+                this.setupEventListeners();
+                this.updateSettingsDisplay();
+            },
+
+            async loadModels() {
+                try {
+                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/models`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.models = result.data;
+                        this.renderModelSelector();
+                    }
+                } catch (error) {
+                    console.error('Failed to load models:', error);
+                }
+            },
+
+            renderModelSelector() {
+                const select = document.getElementById('inference-model-select');
+                select.innerHTML = '<option value="">Select a model...</option>';
+                
+                this.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = `${model.name} (${model.model_type})`;
+                    select.appendChild(option);
+                });
+            },
+
+            setupEventListeners() {
+                // Model selection
+                document.getElementById('inference-model-select').addEventListener('change', (e) => {
+                    this.currentModel = e.target.value;
+                    if (this.currentModel) {
+                        this.startChat();
+                    }
+                });
+
+                // Settings sliders
+                document.getElementById('temperature').addEventListener('input', (e) => {
+                    document.getElementById('temperature-value').textContent = e.target.value;
+                });
+
+                document.getElementById('top-p').addEventListener('input', (e) => {
+                    document.getElementById('top-p-value').textContent = e.target.value;
+                });
+
+                // File input
+                document.getElementById('file-input').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFileUpload(e.target.files[0]);
+                    }
+                });
+
+                // Chat input
+                document.getElementById('chat-input').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+            },
+
+            setInferenceType(type) {
+                this.currentInferenceType = type;
+                
+                // Update button states
+                document.querySelectorAll('.inference-type-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-type="${type}"]`).classList.add('active');
+
+                // Update file input accept attribute
+                const fileInput = document.getElementById('file-input');
+                switch (type) {
+                    case 'image':
+                        fileInput.accept = 'image/*';
+                        break;
+                    case 'video':
+                        fileInput.accept = 'video/*';
+                        break;
+                    case 'multimodal':
+                        fileInput.accept = 'image/*,video/*,audio/*';
+                        break;
+                    default:
+                        fileInput.accept = '';
+                }
+            },
+
+            async startChat() {
+                if (!this.currentModel) return;
+
+                try {
+                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/chat/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model_id: this.currentModel,
+                            settings: this.getChatSettings()
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.currentSession = result.data;
+                        this.connectWebSocket();
+                        this.addSystemMessage('Chat session started with ' + this.currentModel);
+                    }
+                } catch (error) {
+                    console.error('Failed to start chat:', error);
+                }
+            },
+
+            connectWebSocket() {
+                if (!this.currentSession) return;
+
+                const wsUrl = `ws://${window.location.hostname}:55323/chat/${this.currentSession.id}/ws`;
+                this.websocket = new WebSocket(wsUrl);
+
+                this.websocket.onopen = () => {
+                    console.log('WebSocket connected');
+                };
+
+                this.websocket.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(message);
+                };
+
+                this.websocket.onclose = () => {
+                    console.log('WebSocket disconnected');
+                };
+            },
+
+            handleWebSocketMessage(message) {
+                switch (message.message_type) {
+                    case 'Message':
+                        this.addMessage(message.data, 'assistant');
+                        break;
+                    case 'Typing':
+                        this.showTypingIndicator(message.data.is_typing);
+                        break;
+                    case 'Error':
+                        this.addSystemMessage('Error: ' + message.data.message);
+                        break;
+                }
+            },
+
+            async sendMessage() {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+                
+                if (!message || !this.currentSession) return;
+
+                this.addMessage(message, 'user');
+                input.value = '';
+
+                try {
+                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/chat/${this.currentSession.id}/message`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content: message,
+                            settings: this.getChatSettings()
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.addMessage(result.data.content, 'assistant', result.data);
+                    }
+                } catch (error) {
+                    console.error('Failed to send message:', error);
+                    this.addSystemMessage('Failed to send message: ' + error.message);
+                }
+            },
+
+            addMessage(content, role, metadata = null) {
+                const messagesContainer = document.getElementById('chat-messages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                
+                let metaHtml = '';
+                if (metadata && metadata.inference_time_ms) {
+                    metaHtml = `<div class="message-meta">Inference: ${metadata.inference_time_ms}ms</div>`;
+                }
+
+                messageDiv.innerHTML = `
+                    <div>${content}</div>
+                    ${metaHtml}
+                `;
+
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            },
+
+            addSystemMessage(content) {
+                this.addMessage(content, 'system');
+            },
+
+            showTypingIndicator(show) {
+                const indicator = document.getElementById('typing-indicator');
+                indicator.style.display = show ? 'block' : 'none';
+            },
+
+            handleFileUpload(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = e.target.result;
+                    this.addMessage(`📎 ${file.name} (${file.type})`, 'user');
+                    
+                    // Handle different file types
+                    if (file.type.startsWith('image/')) {
+                        this.processImageFile(data);
+                    } else if (file.type.startsWith('video/')) {
+                        this.processVideoFile(data);
+                    }
+                };
+                reader.readAsDataURL(file);
+            },
+
+            async processImageFile(data) {
+                // Convert data URL to blob
+                const response = await fetch(data);
+                const blob = await response.blob();
+                
+                const formData = new FormData();
+                formData.append('model_id', this.currentModel);
+                formData.append('image', blob);
+                formData.append('parameters', JSON.stringify(this.getChatSettings()));
+
+                try {
+                    const result = await fetch(`${API_BASE.replace('55320', '55323')}/inference/image`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const response = await result.json();
+                    if (response.success) {
+                        this.addMessage(`Image analysis: ${response.data.predictions.map(p => p.label).join(', ')}`, 'assistant');
+                    }
+                } catch (error) {
+                    console.error('Image processing failed:', error);
+                }
+            },
+
+            async processVideoFile(data) {
+                // Similar to image processing but for video
+                this.addMessage('Video processing not yet implemented', 'system');
+            },
+
+            getChatSettings() {
+                return {
+                    temperature: parseFloat(document.getElementById('temperature').value),
+                    max_tokens: parseInt(document.getElementById('max-tokens').value),
+                    top_p: parseFloat(document.getElementById('top-p').value)
+                };
+            },
+
+            updateSettingsDisplay() {
+                // Update slider displays
+                document.getElementById('temperature').addEventListener('input', (e) => {
+                    document.getElementById('temperature-value').textContent = e.target.value;
+                });
+
+                document.getElementById('top-p').addEventListener('input', (e) => {
+                    document.getElementById('top-p-value').textContent = e.target.value;
+                });
+            },
+
+            async showModelComparison() {
+                if (this.models.length < 2) {
+                    alert('Need at least 2 models to compare');
+                    return;
+                }
+
+                const modelIds = this.models.slice(0, 3).map(m => m.id);
+                
+                try {
+                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/models/compare`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model_ids: modelIds })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.renderModelComparison(result.data);
+                    }
+                } catch (error) {
+                    console.error('Failed to compare models:', error);
+                }
+            },
+
+            renderModelComparison(comparison) {
+                const modal = document.createElement('div');
+                modal.className = 'model-comparison';
+                modal.innerHTML = `
+                    <div class="model-comparison-content">
+                        <h3>Model Comparison</h3>
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Type</th>
+                                    <th>Accuracy</th>
+                                    <th>Latency (ms)</th>
+                                    <th>Memory (MB)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${comparison.models.map(model => `
+                                    <tr>
+                                        <td>${model.name}</td>
+                                        <td>${model.model_type}</td>
+                                        <td>${model.accuracy || 'N/A'}</td>
+                                        <td>${model.latency_ms || 'N/A'}</td>
+                                        <td>${model.memory_usage_mb || 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        <div style="margin-top: 1rem;">
+                            <h4>Recommendations:</h4>
+                            <ul>
+                                ${comparison.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()" class="btn-primary" style="margin-top: 1rem;">Close</button>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+            }
+        };
+
         window.addEventListener('DOMContentLoaded', () => {
             app.initialize();
             datasetApp.initialize();
+            inferenceApp.initialize();
         });
     </script>
 </body>
