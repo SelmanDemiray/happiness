@@ -834,6 +834,34 @@
             color: var(--bg-dark);
         }
 
+        .model-filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .model-filter-btn {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-muted);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .model-filter-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .model-filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--bg-dark);
+        }
+
         .chat-settings {
             display: flex;
             flex-direction: column;
@@ -1103,6 +1131,22 @@
                 <div class="form-group">
                     <textarea id="model-config" readonly></textarea>
                 </div>
+                
+                <div class="form-group">
+                    <label>Model Name *</label>
+                    <input type="text" id="model-name" placeholder="Enter a descriptive name for your model" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Model Description</label>
+                    <textarea id="model-description" placeholder="Describe what this model does and its purpose" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Model Tags</label>
+                    <input type="text" id="model-tags" placeholder="Enter tags separated by commas (e.g., nlp, classification, sentiment)">
+                </div>
+                
                 <button id="create-model-btn" onclick="app.createModel()">Create Model</button>
             </div>
 
@@ -1247,6 +1291,12 @@
                 <div class="inference-controls">
                     <div class="form-group">
                         <label>Model Selection</label>
+                        <div class="model-filter-buttons">
+                            <button class="model-filter-btn active" data-filter="all" onclick="inferenceApp.filterModels('all')">All Models</button>
+                            <button class="model-filter-btn" data-filter="text" onclick="inferenceApp.filterModels('text')">Text Models</button>
+                            <button class="model-filter-btn" data-filter="image" onclick="inferenceApp.filterModels('image')">Vision Models</button>
+                            <button class="model-filter-btn" data-filter="video" onclick="inferenceApp.filterModels('video')">Video Models</button>
+                        </div>
                         <div class="model-selection-container">
                             <select id="inference-model-select">
                                 <option value="">Select a model...</option>
@@ -1470,6 +1520,17 @@
                     return;
                 }
 
+                // Get metadata fields
+                const modelName = document.getElementById('model-name').value.trim();
+                if (!modelName) {
+                    this.showStatus('Model name is required', 'error', 3000);
+                    return;
+                }
+
+                const modelDescription = document.getElementById('model-description').value.trim();
+                const modelTagsText = document.getElementById('model-tags').value.trim();
+                const modelTags = modelTagsText ? modelTagsText.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
                 let config;
                 try {
                     config = JSON.parse(configText);
@@ -1505,7 +1566,12 @@
                     const response = await fetch(`${API_BASE}/models`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ graph: config })
+                        body: JSON.stringify({ 
+                            name: modelName,
+                            description: modelDescription,
+                            tags: modelTags,
+                            graph: config 
+                        })
                     });
 
                     const result = await response.json();
@@ -1514,6 +1580,11 @@
                         this.log(`Model created: ${result.data.model_id.substring(0, 8)}...`, 'success');
                         this.showStatus(result.message, 'success', 5000);
                         await this.updateAvailableModels();
+                        
+                        // Clear the metadata fields after successful creation
+                        document.getElementById('model-name').value = '';
+                        document.getElementById('model-description').value = '';
+                        document.getElementById('model-tags').value = '';
                     } else {
                         throw new Error(result.message || 'Model creation failed');
                     }
@@ -1819,7 +1890,8 @@
                         optimizer: optimizerPayload,
                         epochs: epochs,
                         batch_size: parseInt(document.getElementById('batch-size').value),
-                        validation_split: validationSplit
+                        validation_split: validationSplit,
+                        dataset_id: state.selectedDataset ? state.selectedDataset.id : null
                     };
 
                     this.log(`Training initiated with ${optimizerType}...`, 'info');
@@ -2099,8 +2171,8 @@
             renderModelSelector() {
                 const selector = document.getElementById('selected-model');
                 selector.innerHTML = state.models.length
-                    ? state.models.map(id => 
-                        `<option value="${id}">Model: ${id.substring(0, 8)}...</option>`
+                    ? state.models.map(model => 
+                        `<option value="${model.id}">${model.name} (${model.architecture_type})</option>`
                       ).join('')
                     : '<option value="">No models available</option>';
                 
@@ -2109,7 +2181,9 @@
                     selector.addEventListener('change', (e) => {
                         const modelId = e.target.value;
                         if (modelId) {
-                            this.log(`Selected model: ${modelId.substring(0, 8)}...`, 'info');
+                            const selectedModel = state.models.find(m => m.id === modelId);
+                            const modelName = selectedModel ? selectedModel.name : modelId.substring(0, 8);
+                            this.log(`Selected model: ${modelName}`, 'info');
                         }
                     });
                     selector.setAttribute('data-listener-added', 'true');
@@ -2843,11 +2917,11 @@
 
             async loadModels() {
                 try {
-                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/models`);
+                    const response = await fetch(`${API_BASE}/models`);
                     const result = await response.json();
                     
-                    if (result.success) {
-                        this.models = result.data;
+                    if (result.status === 'success') {
+                        this.models = result.data.models;
                         this.renderModelSelector();
                     }
                 } catch (error) {
@@ -2859,12 +2933,41 @@
                 const select = document.getElementById('inference-model-select');
                 select.innerHTML = '<option value="">Select a model...</option>';
                 
-                this.models.forEach(model => {
+                const currentFilter = this.currentFilter || 'all';
+                const filteredModels = this.models.filter(model => {
+                    if (currentFilter === 'all') return true;
+                    return model.input_type === currentFilter;
+                });
+                
+                filteredModels.forEach(model => {
                     const option = document.createElement('option');
                     option.value = model.id;
-                    option.textContent = `${model.name} (${model.model_type})`;
+                    
+                    // Create a nice display with badges
+                    const inputIcon = model.input_type === 'text' ? '📝' : 
+                                    model.input_type === 'image' ? '🖼️' : 
+                                    model.input_type === 'video' ? '🎥' : '❓';
+                    const outputIcon = model.output_type === 'classification' ? '🏷️' : 
+                                     model.output_type === 'regression' ? '📊' : 
+                                     model.output_type === 'text' ? '💬' : '❓';
+                    
+                    option.textContent = `${inputIcon} ${model.name} ${outputIcon}`;
+                    option.title = `${model.description || 'No description'} | Tags: ${model.tags.join(', ') || 'None'}`;
                     select.appendChild(option);
                 });
+            },
+
+            filterModels(filter) {
+                this.currentFilter = filter;
+                
+                // Update filter buttons
+                document.querySelectorAll('.model-filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+                
+                // Re-render model selector
+                this.renderModelSelector();
             },
 
             setupEventListeners() {
@@ -2931,23 +3034,65 @@
                 if (!this.currentModel) return;
 
                 try {
-                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/chat/start`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            model_id: this.currentModel,
-                            settings: this.getChatSettings()
-                        })
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        this.currentSession = result.data;
-                        this.connectWebSocket();
-                        this.addSystemMessage('Chat session started with ' + this.currentModel);
+                    // Get model metadata to understand input type
+                    const metadataResponse = await fetch(`${API_BASE}/models/${this.currentModel}/metadata`);
+                    if (metadataResponse.ok) {
+                        const metadataResult = await metadataResponse.json();
+                        if (metadataResult.status === 'success') {
+                            const metadata = metadataResult.data;
+                            this.currentModelMetadata = metadata;
+                            
+                            // Update UI based on model input type
+                            this.updateUIForModelType(metadata.input_type);
+                        }
                     }
+                    
+                    // Create a simple session object for tracking
+                    this.currentSession = {
+                        id: 'session_' + Date.now(),
+                        model_id: this.currentModel
+                    };
+                    
+                    this.addSystemMessage(`Chat session started with ${this.currentModelMetadata?.name || this.currentModel}`);
                 } catch (error) {
                     console.error('Failed to start chat:', error);
+                    this.addSystemMessage('Failed to start chat session');
+                }
+            },
+
+            updateUIForModelType(inputType) {
+                const textInput = document.getElementById('chat-input');
+                const fileInput = document.getElementById('file-input');
+                const inferenceTypeButtons = document.querySelectorAll('.inference-type-btn');
+                
+                // Reset all buttons
+                inferenceTypeButtons.forEach(btn => btn.classList.remove('active'));
+                
+                switch (inputType) {
+                    case 'text':
+                        textInput.style.display = 'block';
+                        textInput.placeholder = 'Type your message here...';
+                        fileInput.style.display = 'none';
+                        document.querySelector('[data-type="text"]').classList.add('active');
+                        break;
+                    case 'image':
+                        textInput.style.display = 'none';
+                        fileInput.style.display = 'block';
+                        fileInput.accept = 'image/*';
+                        document.querySelector('[data-type="image"]').classList.add('active');
+                        break;
+                    case 'video':
+                        textInput.style.display = 'none';
+                        fileInput.style.display = 'block';
+                        fileInput.accept = 'video/*';
+                        document.querySelector('[data-type="video"]').classList.add('active');
+                        break;
+                    default:
+                        textInput.style.display = 'block';
+                        textInput.placeholder = 'Type your message here...';
+                        fileInput.style.display = 'block';
+                        fileInput.accept = 'image/*,video/*';
+                        document.querySelector('[data-type="text"]').classList.add('active');
                 }
             },
 
@@ -2987,30 +3132,81 @@
 
             async sendMessage() {
                 const input = document.getElementById('chat-input');
+                const fileInput = document.getElementById('file-input');
                 const message = input.value.trim();
+                const file = fileInput.files[0];
                 
-                if (!message || !this.currentSession) return;
+                if ((!message && !file) || !this.currentSession) return;
 
-                this.addMessage(message, 'user');
-                input.value = '';
+                // Validate input type matches model
+                if (this.currentModelMetadata) {
+                    const inputType = this.currentModelMetadata.input_type;
+                    if (inputType === 'text' && file) {
+                        this.addSystemMessage('This model only accepts text input, not files');
+                        return;
+                    }
+                    if (inputType === 'image' && !file) {
+                        this.addSystemMessage('This model only accepts image input, not text');
+                        return;
+                    }
+                    if (inputType === 'video' && !file) {
+                        this.addSystemMessage('This model only accepts video input, not text');
+                        return;
+                    }
+                }
+
+                // Add user message
+                if (message) {
+                    this.addMessage(message, 'user');
+                    input.value = '';
+                }
+                if (file) {
+                    this.addMessage(`📎 ${file.name}`, 'user');
+                    fileInput.value = '';
+                }
 
                 try {
-                    const response = await fetch(`${API_BASE.replace('55320', '55323')}/chat/${this.currentSession.id}/message`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            content: message,
-                            settings: this.getChatSettings()
-                        })
-                    });
+                    let requestData;
+                    
+                    if (file) {
+                        // Handle file upload
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('model_id', this.currentModel);
+                        
+                        const response = await fetch(`${API_BASE}/models/${this.currentModel}/predict`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            this.addMessage(result.data.prediction || 'File processed successfully', 'assistant');
+                        } else {
+                            this.addSystemMessage('Error: ' + result.message);
+                        }
+                    } else {
+                        // Handle text input
+                        requestData = {
+                            x: message
+                        };
+                        
+                        const response = await fetch(`${API_BASE}/models/${this.currentModel}/predict`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(requestData)
+                        });
 
-                    const result = await response.json();
-                    if (result.success) {
-                        this.addMessage(result.data.content, 'assistant', result.data);
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            this.addMessage(result.data.prediction || 'Text processed successfully', 'assistant');
+                        } else {
+                            this.addSystemMessage('Error: ' + result.message);
+                        }
                     }
                 } catch (error) {
                     console.error('Failed to send message:', error);
-                    this.addSystemMessage('Failed to send message: ' + error.message);
+                    this.addSystemMessage('Failed to process input');
                 }
             },
 

@@ -456,13 +456,31 @@ mod api {
     #[derive(Clone)]
     pub struct AppState {
         pub models: Arc<Mutex<HashMap<String, Box<dyn AiModel>>>>,
+        pub model_metadata: Arc<Mutex<HashMap<String, ModelMetadata>>>,
         pub db: SqlitePool,
         pub tx: tokio::sync::broadcast::Sender<chat::ChatMessage>,
     }
 
     #[derive(Deserialize, Debug)]
     pub struct CreateModelRequest {
+        pub name: String,
+        pub description: Option<String>,
+        pub tags: Vec<String>,
         pub graph: Value,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ModelMetadata {
+        pub id: String,
+        pub name: String,
+        pub description: String,
+        pub tags: Vec<String>,
+        pub input_type: String,  // "text", "image", "video"
+        pub output_type: String, // "text", "classification", "regression"
+        pub dataset_id: Option<String>,
+        pub dataset_modality: Option<String>,
+        pub architecture_type: String, // inferred from layers
+        pub created_at: DateTime<Utc>,
     }
 
     #[derive(Deserialize, Debug)]
@@ -474,6 +492,7 @@ mod api {
         pub epochs: usize,
         pub batch_size: usize,
         pub validation_split: Option<f64>,
+        pub dataset_id: Option<String>,
     }
 
     #[derive(Deserialize)]
@@ -532,10 +551,12 @@ mod api {
         auth::init_auth_tables(&db_pool).await.expect("Failed to initialize auth tables");
 
         let models = Arc::new(Mutex::new(HashMap::new()));
+        let model_metadata = Arc::new(Mutex::new(HashMap::new()));
         let (tx, _rx) = tokio::sync::broadcast::channel(100);
 
         let state = AppState {
             models,
+            model_metadata,
             db: db_pool,
             tx,
         };
@@ -687,6 +708,63 @@ mod api {
         Ok(password.to_string())
     }
 
+    fn infer_model_types(graph: &Value) -> (String, String, String) {
+        let mut has_conv = false;
+        let mut has_lstm = false;
+        let mut has_linear = false;
+        let mut output_dim = 1;
+        
+        if let Some(nodes) = graph.get("nodes").and_then(|n| n.as_object()) {
+            for (_, node) in nodes {
+                if let Some(op) = node.get("op").and_then(|o| o.as_str()) {
+                    match op {
+                        "Conv2d" | "MaxPool2d" | "AvgPool2d" => has_conv = true,
+                        "LSTM" | "GRU" => has_lstm = true,
+                        "Linear" => {
+                            has_linear = true;
+                            if let Some(params) = node.get("params") {
+                                if let Some(out_features) = params.get("out_features").and_then(|f| f.as_u64()) {
+                                    output_dim = out_features as usize;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        
+        let architecture_type = if has_conv {
+            "vision"
+        } else if has_lstm {
+            "sequence"
+        } else if has_linear {
+            "mlp"
+        } else {
+            "unknown"
+        }.to_string();
+        
+        let input_type = if has_conv {
+            "image"
+        } else if has_lstm {
+            "text"
+        } else if has_linear {
+            "text"
+        } else {
+            "unknown"
+        }.to_string();
+        
+        let output_type = if output_dim == 1 {
+            "regression"
+        } else if output_dim > 1 {
+            "classification"
+        } else {
+            "unknown"
+        }.to_string();
+        
+        (architecture_type, input_type, output_type)
+    }
+
     async fn create_model(
         State(state): State<AppState>,
         Json(payload): Json<CreateModelRequest>,
@@ -698,17 +776,43 @@ mod api {
             Ok(model) => {
                 let model_id = Uuid::new_v4().to_string();
                 let model_details = model.to_value();
+                
+                // Infer model types from architecture
+                let (architecture_type, input_type, output_type) = infer_model_types(&payload.graph);
+                
+                // Create metadata
+                let metadata = ModelMetadata {
+                    id: model_id.clone(),
+                    name: payload.name.clone(),
+                    description: payload.description.unwrap_or_default(),
+                    tags: payload.tags.clone(),
+                    input_type,
+                    output_type,
+                    dataset_id: None,
+                    dataset_modality: None,
+                    architecture_type,
+                    created_at: Utc::now(),
+                };
+                
+                // Store model and metadata
                 state
                     .models
                     .lock()
                     .unwrap()
                     .insert(model_id.clone(), Box::new(model));
-                tracing::info!("✅ Model created: {}", model_id);
+                    
+                state
+                    .model_metadata
+                    .lock()
+                    .unwrap()
+                    .insert(model_id.clone(), metadata);
+                
+                tracing::info!("✅ Model created: {} ({})", model_id, payload.name);
                 (
                     StatusCode::CREATED,
                     Json(ApiResponse {
                         status: "success".into(),
-                        message: format!("Model {} created successfully", &model_id[..8]),
+                        message: format!("Model '{}' created successfully", payload.name),
                         data: Some(serde_json::json!({
                             "model_id": model_id,
                             "architecture": model_details
@@ -796,14 +900,15 @@ mod api {
     }
 
     async fn list_models(State(state): State<AppState>) -> (StatusCode, Json<ApiResponse>) {
-        let model_ids: Vec<String> = state.models.lock().unwrap().keys().cloned().collect();
-        tracing::info!("📋 Listed {} models", model_ids.len());
+        let metadata_map = state.model_metadata.lock().unwrap();
+        let models: Vec<ModelMetadata> = metadata_map.values().cloned().collect();
+        tracing::info!("📋 Listed {} models", models.len());
         (
             StatusCode::OK,
             Json(ApiResponse {
                 status: "success".into(),
-                message: format!("Found {} models", model_ids.len()),
-                data: Some(serde_json::json!({ "models": model_ids })),
+                message: format!("Found {} models", models.len()),
+                data: Some(serde_json::json!({ "models": models })),
             }),
         )
     }
@@ -834,76 +939,22 @@ mod api {
         State(state): State<AppState>,
         Path(model_id): Path<String>,
     ) -> Result<Json<ApiResponse>, (StatusCode, Json<ApiResponse>)> {
-        let models = state.models.lock().unwrap();
-        let model = models.get(&model_id).ok_or_else(|| {
+        let metadata_map = state.model_metadata.lock().unwrap();
+        let metadata = metadata_map.get(&model_id).ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
                 Json(ApiResponse {
                     status: "error".into(),
-                    message: "Model not found".into(),
+                    message: "Model metadata not found".into(),
                     data: None,
                 }),
             )
         })?;
 
-        let architecture = model.to_value();
-        let empty_map = serde_json::Map::new();
-        let nodes = architecture.get("nodes").and_then(|n| n.as_object()).unwrap_or(&empty_map);
-        
-        // Calculate model statistics
-        let total_layers = nodes.len();
-        let layer_types: std::collections::HashMap<String, usize> = nodes
-            .values()
-            .filter_map(|node| node.get("op").and_then(|op| op.as_str()))
-            .fold(std::collections::HashMap::new(), |mut acc, op_type| {
-                *acc.entry(op_type.to_string()).or_insert(0) += 1;
-                acc
-            });
-
-        let has_linear = layer_types.contains_key("Linear");
-        let has_activation = layer_types.iter().any(|(k, _)| 
-            ["ReLU", "Gelu", "Sigmoid", "Tanh", "Softmax"].contains(&k.as_str())
-        );
-        let has_normalization = layer_types.contains_key("LayerNorm");
-
-        let model_type = if has_linear && has_activation {
-            "Neural Network"
-        } else if has_linear {
-            "Linear Model"
-        } else if has_activation {
-            "Activation Model"
-        } else {
-            "Unknown"
-        };
-
-        let total_params = model.get_named_params().values()
-            .map(|tensor| tensor.size())
-            .sum::<usize>();
-
-        let metadata = serde_json::json!({
-            "model_id": model_id,
-            "model_type": model_type,
-            "total_layers": total_layers,
-            "total_parameters": total_params,
-            "layer_types": layer_types,
-            "capabilities": {
-                "has_linear": has_linear,
-                "has_activation": has_activation,
-                "has_normalization": has_normalization,
-                "is_classifier": has_linear && has_activation,
-                "is_regressor": has_linear && !has_activation
-            },
-            "architecture_summary": {
-                "input_nodes": architecture.get("inputs").and_then(|i| i.as_array()).map(|a| a.len()).unwrap_or(0),
-                "output_nodes": architecture.get("output_node").map(|_| 1).unwrap_or(0),
-                "hidden_layers": total_layers.saturating_sub(2)
-            }
-        });
-
         Ok(Json(ApiResponse {
             status: "success".into(),
             message: "Model metadata retrieved".into(),
-            data: Some(metadata),
+            data: Some(serde_json::to_value(metadata).unwrap()),
         }))
     }
 
@@ -1096,6 +1147,25 @@ mod api {
 
             tracing::info!("✅ Training loop completed");
 
+            // Update model metadata with dataset information
+            if let Some(dataset_id) = &payload.dataset_id {
+                let mut metadata_map = state_clone.model_metadata.lock().unwrap();
+                if let Some(metadata) = metadata_map.get_mut(&model_id_clone) {
+                    metadata.dataset_id = Some(dataset_id.clone());
+                    // Infer dataset modality from dataset_id (simplified)
+                    metadata.dataset_modality = if dataset_id.contains("image") || dataset_id.contains("vision") {
+                        Some("image".to_string())
+                    } else if dataset_id.contains("text") || dataset_id.contains("nlp") {
+                        Some("text".to_string())
+                    } else if dataset_id.contains("video") {
+                        Some("video".to_string())
+                    } else {
+                        Some("unknown".to_string())
+                    };
+                    tracing::info!("Updated model metadata with dataset: {}", dataset_id);
+                }
+            }
+
             // Send completion event
             let completion_data = serde_json::json!({
                 "type": "complete",
@@ -1142,6 +1212,11 @@ mod api {
             )
         })?;
 
+        // Get model metadata to understand input/output types
+        let metadata_map = state.model_metadata.lock().unwrap();
+        let metadata = metadata_map.get(&model_id).cloned();
+        drop(metadata_map);
+
         let x_data = json_to_tensor(&payload.x).map_err(|e| {
             (
                 StatusCode::BAD_REQUEST,
@@ -1154,11 +1229,65 @@ mod api {
         })?;
 
         let predictions = model.forward(&x_data);
+        let prediction_data = tensor_to_json(&predictions);
+
+        // Convert predictions to human-readable format based on model type
+        let human_readable_prediction = if let Some(meta) = metadata {
+            match meta.output_type.as_str() {
+                "classification" => {
+                    // For classification, find the class with highest probability
+                    if let Some(pred_array) = prediction_data.as_array() {
+                        if let Some(max_idx) = pred_array.iter()
+                            .enumerate()
+                            .max_by(|(_, a), (_, b)| a.as_f64().unwrap_or(0.0).partial_cmp(&b.as_f64().unwrap_or(0.0)).unwrap())
+                            .map(|(idx, _)| idx) {
+                            format!("Predicted class: {} (confidence: {:.2}%)", 
+                                max_idx, 
+                                pred_array[max_idx].as_f64().unwrap_or(0.0) * 100.0)
+                        } else {
+                            "Classification result: Unknown".to_string()
+                        }
+                    } else {
+                        "Classification result: Invalid format".to_string()
+                    }
+                }
+                "regression" => {
+                    // For regression, show the predicted value
+                    if let Some(pred_value) = prediction_data.as_f64() {
+                        format!("Predicted value: {:.4}", pred_value)
+                    } else if let Some(pred_array) = prediction_data.as_array() {
+                        if let Some(first_val) = pred_array.first().and_then(|v| v.as_f64()) {
+                            format!("Predicted value: {:.4}", first_val)
+                        } else {
+                            "Regression result: Invalid format".to_string()
+                        }
+                    } else {
+                        "Regression result: Unknown".to_string()
+                    }
+                }
+                "text" => {
+                    // For text models, try to interpret the output
+                    if let Some(pred_array) = prediction_data.as_array() {
+                        // Simple text generation simulation
+                        let input_text = payload.x.as_str().unwrap_or("input");
+                        format!("Generated response to '{}': [Model output would be processed here]", input_text)
+                    } else {
+                        "Text generation result: [Model output would be processed here]".to_string()
+                    }
+                }
+                _ => format!("Model prediction: {:?}", prediction_data)
+            }
+        } else {
+            format!("Model prediction: {:?}", prediction_data)
+        };
 
         Ok(Json(ApiResponse {
             status: "success".to_string(),
             message: "Prediction successful".to_string(),
-            data: Some(serde_json::json!({ "predictions": tensor_to_json(&predictions) })),
+            data: Some(serde_json::json!({ 
+                "prediction": human_readable_prediction,
+                "raw_predictions": prediction_data
+            })),
         }))
     }
 

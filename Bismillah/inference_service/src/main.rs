@@ -112,26 +112,7 @@ async fn main() -> Result<()> {
     // Initialize application state
     let app_state = AppState::new();
 
-    // Add some example models
-    {
-        let mut models = app_state.models.write().await;
-        models.push(ModelInfo {
-            id: "gpt-2".to_string(),
-            name: "GPT-2 Small".to_string(),
-            description: "Small GPT-2 model for text generation".to_string(),
-            model_type: "TextGeneration".to_string(),
-            status: "loaded".to_string(),
-            created_at: Utc::now(),
-        });
-        models.push(ModelInfo {
-            id: "resnet-50".to_string(),
-            name: "ResNet-50".to_string(),
-            description: "ResNet-50 model for image classification".to_string(),
-            model_type: "ImageClassification".to_string(),
-            status: "loaded".to_string(),
-            created_at: Utc::now(),
-        });
-    }
+    // Models will be loaded from the backend service
 
     // Build the application
     let app = Router::new()
@@ -176,8 +157,60 @@ async fn main() -> Result<()> {
 // ============================================================================
 
 async fn list_models(State(state): State<AppState>) -> Result<Json<ApiResponse<Vec<ModelInfo>>>, StatusCode> {
-    let models = state.models.read().await;
-    Ok(Json(ApiResponse::success(models.clone())))
+    // Fetch models from backend service
+    let backend_url = std::env::var("BACKEND_URL").unwrap_or_else(|_| "http://localhost:55320".to_string());
+    
+    match reqwest::get(&format!("{}/models", backend_url)).await {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>().await {
+                    Ok(json_response) => {
+                        if let Some(data) = json_response.get("data") {
+                            if let Some(models_data) = data.get("models") {
+                                if let Ok(backend_models) = serde_json::from_value::<Vec<serde_json::Value>>(models_data.clone()) {
+                                    // Convert backend models to inference service format
+                                    let models: Vec<ModelInfo> = backend_models.into_iter().filter_map(|model_json| {
+                                        if let (Some(id), Some(name)) = (
+                                            model_json.get("id").and_then(|v| v.as_str()),
+                                            model_json.get("name").and_then(|v| v.as_str())
+                                        ) {
+                                            Some(ModelInfo {
+                                                id: id.to_string(),
+                                                name: name.to_string(),
+                                                description: model_json.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                                model_type: model_json.get("input_type").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                                                status: "available".to_string(),
+                                                created_at: model_json.get("created_at").and_then(|v| v.as_str())
+                                                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                                                    .map(|dt| dt.with_timezone(&Utc))
+                                                    .unwrap_or_else(Utc::now),
+                                            })
+                                        } else {
+                                            None
+                                        }
+                                    }).collect();
+                                    
+                                    tracing::info!("Fetched {} models from backend", models.len());
+                                    return Ok(Json(ApiResponse::success(models)));
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to parse backend response: {}", e);
+                    }
+                }
+            } else {
+                tracing::error!("Backend returned error status: {}", response.status());
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to fetch models from backend: {}", e);
+        }
+    }
+    
+    // Fallback to empty list if backend is unavailable
+    Ok(Json(ApiResponse::success(Vec::new())))
 }
 
 async fn get_model(State(state): State<AppState>, Path(id): Path<String>) -> Result<Json<ApiResponse<ModelInfo>>, StatusCode> {
